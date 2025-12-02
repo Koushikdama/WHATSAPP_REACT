@@ -1,0 +1,845 @@
+=====================================================
+SPRING BOOT BACKEND API SPECIFICATION
+Social Chat Application - Microservices Architecture
+=====================================================
+
+Based on UI Data Model Analysis
+Generated: 2025-11-27 (UPDATED)
+
+=====================================================
+TABLE OF CONTENTS
+=====================================================
+1. USER SERVICE
+2. SETTINGS SERVICE (User Preferences)
+3. MESSAGE SERVICE  
+4. CALL SERVICE
+5. STATUS SERVICE
+6. NOTIFICATION SERVICE
+7. COMMON DTOs & ENUMS
+
+=====================================================
+1. USER SERVICE
+=====================================================
+
+----------------------------
+ENTITIES
+----------------------------
+
+UserEntity:
+- id: String (Primary Key, UUID)
+- name: String (not null)
+- email: String (unique, not null)
+- avatar: String (URL)
+- about: String
+- phone: String (unique)
+- lastSeen: LocalDateTime
+- isOnline: Boolean (default: false)
+- isPrivate: Boolean (default: false)
+- createdAt: LocalDateTime
+- updatedAt: LocalDateTime
+
+FollowEntity:
+- id: String (Primary Key, UUID)
+- followerId: String (Foreign Key -> UserEntity.id)
+- followingId: String (Foreign Key -> UserEntity.id)
+- createdAt: LocalDateTime
+
+FollowRequestEntity:
+- id: String (Primary Key, UUID)
+- fromUserId: String (Foreign Key -> UserEntity.id)
+- toUserId: String (Foreign Key -> UserEntity.id)
+- status: String (PENDING, ACCEPTED, REJECTED)
+- createdAt: LocalDateTime
+- respondedAt: LocalDateTime
+
+BlockedUserEntity:
+- id: String (Primary Key, UUID)
+- userId: String (Foreign Key -> UserEntity.id) - who blocked
+- blockedUserId: String (Foreign Key -> UserEntity.id) - who is blocked
+- createdAt: LocalDateTime
+
+----------------------------
+REQUEST DTOs
+----------------------------
+
+CreateUserRequest:
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "avatar": "https://...",
+  "about": "Hey there!"
+}
+
+UpdateUserRequest:
+{
+  "name": "John Doe",
+  "avatar": "https://...",
+  "about": "Updated status",
+  "isPrivate":false
+}
+
+FollowUserRequest:
+{
+  "targetUserId": "user2"
+}
+
+UpdateOnlineStatusRequest:
+{
+  "isOnline": true
+}
+
+BlockUserRequest:
+{
+  "blockedUserId": "user5"
+}
+
+----------------------------
+RESPONSE DTOs
+----------------------------
+
+UserResponse:
+{
+  "id": "user1",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "avatar": "https://...",
+  "about": "Hey there!",
+  "phone": "+1234567890",
+  "isOnline": true,
+  "lastSeen": "2025-11-27T12:00:00",
+  "isPrivate": false,
+  "followers": ["user2", "user3"],
+  "following": ["user4"]
+}
+
+UserListResponse:
+{
+  "users": [UserResponse],
+  "totalCount": 5
+}
+
+FollowStatusResponse:
+{
+  "isFollowing": true,
+  "isFollower": false,
+  "followRequestStatus": "ACCEPTED"
+}
+
+BlockedUsersResponse:
+{
+  "blockedUsers": [UserResponse],
+  "totalCount": 2
+}
+
+----------------------------
+ENDPOINTS
+----------------------------
+
+1. GET /api/users/me
+   Description: Get current authenticated user
+   Response: UserResponse
+
+2. GET /api/users/{userId}
+   Description: Get user by ID
+   Response: UserResponse
+
+3. GET /api/users
+   Description: Get all users (for contacts)
+   Query Params: ?search=name&page=0&size=20
+   Response: UserListResponse
+
+4. PUT /api/users/me
+   Description: Update current user profile
+   Request: UpdateUserRequest
+   Response: UserResponse
+
+5. POST /api/users/{userId}/follow
+   Description: Follow a user
+   Request: FollowUserRequest
+   Response: FollowStatusResponse
+
+6. DELETE /api/users/{userId}/follow
+   Description: Unfollow a user
+   Response: FollowStatusResponse
+
+7. GET /api/users/{userId}/followers
+   Description: Get user's followers
+   Response: UserListResponse
+
+8. GET /api/users/{userId}/following
+   Description: Get users being followed
+   Response: UserListResponse
+
+9. PUT /api/users/me/online-status
+   Description: Update online status
+   Request: UpdateOnlineStatusRequest
+   Response: UserResponse
+
+10. GET /api/users/{userId}/follow-status
+    Description: Get follow relationship status
+    Response: FollowStatusResponse
+
+11. POST /api/users/block
+    Description: Block a user
+    Request: BlockUserRequest
+    Response: { "success": true }
+
+12. DELETE /api/users/block/{blockedUserId}
+    Description: Unblock a user
+    Response: { "success": true }
+
+13. GET /api/users/blocked
+    Description: Get list of blocked users
+    Response: BlockedUsersResponse
+
+=====================================================
+2. SETTINGS SERVICE (User Preferences)
+=====================================================
+
+----------------------------
+ENTITIES
+----------------------------
+
+UserSettingsEntity:
+- id: String (Primary Key, UUID)
+- userId: String (Foreign Key -> UserEntity.id, unique)
+- createdAt: LocalDateTime
+- updatedAt: LocalDateTime
+
+ThemeSettingsEntity:
+- id: String (Primary Key, UUID)
+- userSettingsId: String (Foreign Key -> UserSettingsEntity.id)
+- themeColorName: String (default: 'green')
+- themeColorFrom: String
+- themeColorTo: String
+- toggleOnColorName: String
+- toggleOnColorFrom: String
+- toggleOnColorTo: String
+- toggleOffColorName: String
+- toggleOffColor: String
+- chatBackground: String (URL)
+- uiStyle: String (NORMAL, GLOSSY, default: NORMAL)
+- animationsEnabled: Boolean (default: true)
+- fontSize: String (SMALL, MEDIUM, LARGE, default: MEDIUM)
+- headerAnimation: String (NONE, SHINE, WAVE, default: NONE)
+- swipeSensitivity: Integer (default: 50)
+- wallpaperQuality: String (LOW, MEDIUM, HIGH, default: HIGH)
+- statusDuration: Integer (default: 30, in seconds)
+
+PasscodeSettingsEntity:
+- id: String (Primary Key, UUID)
+- userSettingsId: String (Foreign Key -> UserSettingsEntity.id)
+- lockedChatsEnabled: Boolean (default: false)
+- lockedChatsPasscode: String (nullable)
+- vanishModeEnabled: Boolean (default: false)
+- vanishModePasscode: String (nullable)
+- dailyChatLockEnabled: Boolean (default: false)
+- dailyChatLockPasscode: String (nullable)
+
+PrivacySettingsEntity:
+- id: String (Primary Key, UUID)
+- userSettingsId: String (Foreign Key -> UserSettingsEntity.id)
+- lastSeenVisibility: String (EVERYONE, CONTACTS, NOBODY, default: EVERYONE)
+- profilePhotoVisibility: String (EVERYONE, CONTACTS, NOBODY, default: EVERYONE)
+- aboutVisibility: String (EVERYONE, CONTACTS, NOBODY, default: EVERYONE)
+- readReceiptsEnabled: Boolean (default: true)
+- securityNotificationsEnabled: Boolean (default: true)
+
+NotificationSettingsEntity:
+- id: String (Primary Key, UUID)
+- userSettingsId: String (Foreign Key -> UserSettingsEntity.id)
+- messageNotificationsEnabled: Boolean (default: true)
+- groupNotificationsEnabled: Boolean (default: true)
+- callNotificationsEnabled: Boolean (default: true)
+- notificationSound: String (default: 'default')
+- vibrationEnabled: Boolean (default: true)
+
+----------------------------
+REQUEST DTOs
+----------------------------
+
+UpdateThemeSettingsRequest:
+{
+  "themeColorName": "ocean",
+  "themeColorFrom": "#2193b0",
+  "themeColorTo": "#6dd5ed",
+  "chatBackground": "https://...",
+  "uiStyle": "GLOSSY",
+  "animationsEnabled": true,
+  "fontSize": "MEDIUM",
+  "headerAnimation": "SHINE",
+  "wallpaperQuality": "HIGH"
+}
+
+UpdatePasscodeSettingsRequest:
+{
+  "lockedChatsEnabled": true,
+  "lockedChatsPasscode": "1234",
+  "vanishModeEnabled": false,
+  "dailyChatLockEnabled": true,
+  "dailyChatLockPasscode": "5678"
+}
+
+UpdatePrivacySettingsRequest:
+{
+  "lastSeenVisibility": "CONTACTS",
+  "profilePhotoVisibility": "EVERYONE",
+  "aboutVisibility": "CONTACTS",
+  "readReceiptsEnabled": true,
+  "securityNotificationsEnabled": true
+}
+
+UpdateNotificationSettingsRequest:
+{
+  "messageNotificationsEnabled": true,
+  "groupNotificationsEnabled": true,
+  "callNotificationsEnabled": true,
+  "notificationSound": "default",
+  "vibrationEnabled": true
+}
+
+----------------------------
+RESPONSE DTOs
+----------------------------
+
+ThemeSettingsResponse:
+{
+  "themeColor": {
+    "name": "ocean",
+    "from": "#2193b0",
+    "to": "#6dd5ed"
+  },
+  "toggleOnColor": {
+    "name": "green",
+    "from": "#00a884",
+    "to": "#008a69"
+  },
+  "toggleOffColor": {
+    "name": "gray",
+    "color": "#374151"
+  },
+  "chatBackground": "https://...",
+  "uiStyle": "GLOSSY",
+  "animationsEnabled": true,
+  "fontSize": "MEDIUM",
+  "headerAnimation": "SHINE",
+  "swipeSensitivity": 50,
+  "wallpaperQuality": "HIGH",
+  "statusDuration": 30
+}
+
+PasscodeSettingsResponse:
+{
+  "lockedChats": {
+    "enabled": true,
+    "passcode": "****" // masked
+  },
+  "vanishMode": {
+    "enabled": false,
+    "passcode": null
+  },
+  "dailyChatLock": {
+    "enabled": true,
+    "passcode": "****" // masked
+  }
+}
+
+PrivacySettingsResponse:
+{
+  "lastSeenVisibility": "CONTACTS",
+  "profilePhotoVisibility": "EVERYONE",
+  "aboutVisibility": "CONTACTS",
+  "readReceiptsEnabled": true,
+  "securityNotificationsEnabled": true
+}
+
+NotificationSettingsResponse:
+{
+  "messageNotificationsEnabled": true,
+  "groupNotificationsEnabled": true,
+  "callNotificationsEnabled": true,
+  "notificationSound": "default",
+  "vibrationEnabled": true
+}
+
+UserSettingsResponse:
+{
+  "themeSettings": ThemeSettingsResponse,
+  "passcodeSettings": PasscodeSettingsResponse,
+  "privacySettings": PrivacySettingsResponse,
+  "notificationSettings": NotificationSettingsResponse
+}
+
+----------------------------
+ENDPOINTS
+----------------------------
+
+1. GET /api/settings/me
+   Description: Get all settings for current user
+   Response: UserSettingsResponse
+
+2. GET /api/settings/theme
+   Description: Get theme settings
+   Response: ThemeSettingsResponse
+
+3. PUT /api/settings/theme
+   Description: Update theme settings
+   Request: UpdateThemeSettingsRequest
+   Response: ThemeSettingsResponse
+
+4. GET /api/settings/passcode
+   Description: Get passcode settings
+   Response: PasscodeSettingsResponse
+
+5. PUT /api/settings/passcode
+   Description: Update passcode settings
+   Request: UpdatePasscodeSettingsRequest
+   Response: PasscodeSettingsResponse
+
+6. GET /api/settings/privacy
+   Description: Get privacy settings
+   Response: PrivacySettingsResponse
+
+7. PUT /api/settings/privacy
+   Description: Update privacy settings
+   Request: UpdatePrivacySettingsRequest
+   Response: PrivacySettingsResponse
+
+8. GET /api/settings/notifications
+   Description: Get notification settings
+   Response: NotificationSettingsResponse
+
+9. PUT /api/settings/notifications
+   Description: Update notification settings
+   Request: UpdateNotificationSettingsRequest
+   Response: NotificationSettingsResponse
+
+10. POST /api/settings/passcode/verify
+    Description: Verify passcode for locked features
+    Request: { "feature": "lockedChats", "passcode": "1234" }
+    Response: { "valid": true }
+
+=====================================================
+3. MESSAGE SERVICE
+=====================================================
+
+----------------------------
+ENTITIES
+----------------------------
+
+ConversationEntity:
+- id: String (Primary Key, UUID)
+- type: String (INDIVIDUAL, GROUP)
+- name: String (for groups)
+- avatar: String (for groups)
+- description: String (for groups)
+- createdAt: LocalDateTime
+- updatedAt: LocalDateTime
+- theme: String
+- receivedTheme: String
+
+ConversationParticipantEntity:
+- id: String (Primary Key, UUID)
+- conversationId: String (Foreign Key -> ConversationEntity.id)
+- userId: String (Foreign Key -> UserEntity.id)
+- role: String (ADMIN, CO_ADMIN, MEMBER)
+- isPinned: Boolean
+- isMuted: Boolean
+- isLocked: Boolean
+- unreadCount: Integer
+- joinedAt: LocalDateTime
+
+MessageEntity:
+- id: String (Primary Key, UUID)
+- conversationId: String (Foreign Key -> ConversationEntity.id)
+- senderId: String (Foreign Key -> UserEntity.id)
+- content: String
+- messageType: String (TEXT, IMAGE, VIDEO, DOCUMENT, VOICE, CALL, SECURITY, POLL)
+- timestamp: LocalDateTime
+- status: String (SENT, DELIVERED, READ)
+- replyMessageId: String (Foreign Key -> MessageEntity.id, nullable)
+- isEdited: Boolean
+- deleteForEveryone: Boolean
+- deletedFor: String (comma-separated user IDs)
+
+MessageFileEntity:
+- id: String (Primary Key, UUID)
+- messageId: String (Foreign Key -> MessageEntity.id)
+- fileName: String
+- fileSize: String
+- fileUrl: String
+- duration: String (for voice/video)
+
+MessageReactionEntity:
+- id: String (Primary Key, UUID)
+- messageId: String (Foreign Key -> MessageEntity.id)
+- userId: String (Foreign Key -> UserEntity.id)
+- emoji: String
+- createdAt: LocalDateTime
+
+PollEntity:
+- id: String (Primary Key, UUID)
+- messageId: String (Foreign Key -> MessageEntity.id)
+- question: String
+
+PollOptionEntity:
+- id: String (Primary Key, UUID)
+- pollId: String (Foreign Key -> PollEntity.id)
+- optionText: String
+
+PollVoteEntity:
+- id: String (Primary Key, UUID)
+- pollOptionId: String (Foreign Key -> PollOptionEntity.id)
+- userId: String (Foreign Key -> UserEntity.id)
+- votedAt: LocalDateTime
+
+----------------------------
+REQUEST DTOs
+----------------------------
+
+CreateConversationRequest (Individual):
+{
+  "participantId": "user2",
+  "type": "INDIVIDUAL"
+}
+
+CreateConversationRequest (Group):
+{
+  "type": "GROUP",
+  "name": "Weekend Plans",
+  "avatar": "https://...",
+  "description": "Planning weekend activities",
+  "participantIds": ["user2", "user3", "user4"]
+}
+
+SendMessageRequest:
+{
+  "content": "Hello!",
+  "messageType": "TEXT",
+  "replyMessageId": null
+}
+
+SendImageMessageRequest:
+{
+  "content": "Check out this!",
+  "messageType": "IMAGE",
+  "fileInfo": {
+    "fileName": "photo.jpg",
+    "fileSize": "1.2 MB",
+    "fileUrl": "https://..."
+  }
+}
+
+SendVoiceMessageRequest:
+{
+  "content": "Voice message",
+  "messageType": "VOICE",
+  "fileInfo": {
+    "fileName": "audio.mp3",
+    "fileSize": "500 KB",
+    "fileUrl": "https://...",
+    "duration": "0:45"
+  }
+}
+
+SendPollMessageRequest:
+{
+  "content": "",
+  "messageType": "POLL",
+  "pollInfo": {
+    "question": "Where should we meet?",
+    "options": [
+      {"text": "Coffee Shop"},
+      {"text": "Park"},
+      {"text": "Library"}
+    ]
+  }
+}
+
+EditMessageRequest:
+{
+  "content": "Updated message content"
+}
+
+ReactToMessageRequest:
+{
+  "emoji": "👍"
+}
+
+VotePollRequest:
+{
+  "optionIndex": 0
+}
+
+UpdateConversationSettingsRequest:
+{
+  "isPinned": true,
+  "isMuted": false,
+  "isLocked": true,
+  "theme": "ocean",
+  "receivedTheme": "sunset"
+}
+
+----------------------------
+RESPONSE DTOs
+----------------------------
+
+ConversationResponse:
+{
+  "id": "chat1",
+  "conversationType": "INDIVIDUAL",
+  "name": "Jane Smith",
+  "profileImage": "https://...",
+  "lastMessage": "See you tomorrow!",
+  "lastMessageAt": "2025-11-27T10:30:00",
+  "lastMessageType": "TEXT",
+  "lastMessageSentById": "user2",
+  "lastMessageSentByName": "Jane Smith",
+  "unreadCount": 2,
+  "isOnline": false,
+  "isPinned": false,
+  "isLocked": false,
+  "isVanishMode": false,
+  "theme": "default",
+  "receivedTheme": null,
+  "participants": ["user1", "user2"]
+}
+
+MessageResponse:
+{
+  "id": "msg1",
+  "conversationId": "chat1",
+  "senderId": "user1",
+  "senderName": "John Doe",
+  "content": "Hello!",
+  "timestamp": "2025-11-27T10:30:00",
+  "messageType": "TEXT",
+  "status": "READ",
+  "replyMessageId": null,
+  "replyMessageContent": null,
+  "replyMessageSender": null,
+  "fileInfo": null,
+  "duration": null,
+  "isEdited": false,
+  "deleteForEveryone": false,
+  "reactions": {
+    "👍": ["user2", "user3"],
+    "❤️": ["user4"]
+  },
+  "pollInfo": null
+}
+
+MessageListResponse:
+{
+  "messages": [MessageResponse],
+  "totalCount": 50,
+  "hasMore": true
+}
+
+GroupInfoResponse:
+{
+  "id": "chat3",
+  "name": "Weekend Plans",
+  "description": "Planning activities",
+  "createdBy": "user1",
+  "createdAt": "2025-11-20T10:00:00",
+  "profileImage": "https://...",
+  "members": {
+    "user1": "ADMIN",
+    "user2": "MEMBER",
+    "user3": "CO_ADMIN"
+  },
+  "memberCount": 3,
+  "isActive": true
+}
+
+----------------------------
+ENDPOINTS
+----------------------------
+
+1. GET /api/conversations
+   Description: Get all conversations for user
+   Query Params: ?userId=user1
+   Response: List<ConversationResponse>
+
+2. GET /api/conversations/{conversationId}
+   Description: Get conversation details
+   Response: ConversationResponse
+
+3. POST /api/conversations
+   Description: Create new conversation
+   Request: CreateConversationRequest
+   Response: ConversationResponse
+
+4. GET /api/conversations/{conversationId}/messages
+   Description: Get messages for conversation
+   Query Params: ?page=0&size=50
+   Response: MessageListResponse
+
+5. POST /api/conversations/{conversationId}/messages
+   Description: Send message
+   Request: SendMessageRequest
+   Response: MessageResponse
+
+6. PUT /api/messages/{messageId}
+   Description: Edit message
+   Request: EditMessageRequest
+   Response: MessageResponse
+
+7. DELETE /api/messages/{messageId}/me
+   Description: Delete message for me
+   Response: { "success": true }
+
+8. DELETE /api/messages/{messageId}/everyone
+   Description: Delete message for everyone
+   Response: { "success": true }
+
+9. POST /api/messages/{messageId}/reactions
+   Description: Add/remove reaction
+   Request: ReactToMessageRequest
+   Response: MessageResponse
+
+10. POST /api/messages/{messageId}/vote
+    Description: Vote on poll
+    Request: VotePollRequest
+    Response: MessageResponse
+
+11. PUT /api/conversations/{conversationId}/settings
+    Description: Update conversation settings
+    Request: UpdateConversationSettingsRequest
+    Response: ConversationResponse
+
+12. DELETE /api/conversations/{conversationId}/messages
+    Description: Clear all messages
+    Response: { "success": true }
+
+13. PUT /api/conversations/{conversationId}/lock
+    Description: Toggle chat lock
+    Response: { "success": true, "isLocked": true }
+
+14. PUT /api/conversations/{conversationId}/vanish
+    Description: Toggle vanish mode
+    Response: { "success": true, "isVanishMode": true }
+
+15. PUT /api/conversations/{conversationId}/theme
+    Description: Update conversation theme
+    Request: { "theme": "ocean", "isReceived": false }
+    Response: { "success": true }
+
+16. GET /api/conversations/{conversationId}/group-info
+    Description: Get group information
+    Response: GroupInfoResponse
+
+=====================================================
+4. CALL SERVICE
+=====================================================
+
+[... Rest remains the same ...]
+
+=====================================================
+7. COMMON DTOs & ENUMS
+=====================================================
+
+----------------------------
+ENUMS
+----------------------------
+
+ConversationType:
+- INDIVIDUAL
+- GROUP
+
+MessageType:
+- TEXT
+- IMAGE
+- VIDEO
+- DOCUMENT
+- VOICE
+- CALL
+- SECURITY
+- POLL
+
+MessageStatus:
+- SENT
+- DELIVERED
+- READ
+
+CallType:
+- VOICE
+- VIDEO
+
+CallStatus:
+- INCOMING
+- OUTGOING
+- MISSED
+- ENDED
+
+StatusUpdateType:
+- IMAGE
+- VIDEO
+- AUDIO
+
+NotificationType:
+- FOLLOW_REQUEST
+- FOLLOW_ACCEPTED
+- NEW_FOLLOWER
+- MESSAGE
+- CALL_MISSED
+- STATUS_REACTION
+
+GroupMemberRole:
+- ADMIN
+- CO_ADMIN
+- MEMBER
+
+FollowRequestStatus:
+- PENDING
+- ACCEPTED
+- REJECTED
+
+UIStyle:
+- NORMAL
+- GLOSSY
+
+FontSize:
+- SMALL
+- MEDIUM
+- LARGE
+
+HeaderAnimation:
+- NONE
+- SHINE
+- WAVE
+
+VisibilityLevel:
+- EVERYONE
+- CONTACTS
+- NOBODY
+
+----------------------------
+NOTES & RECOMMENDATIONS
+----------------------------
+
+1. User Settings Architecture:
+   - Store user preferences separately from user profile
+   - Use one-to-one relationship between User and UserSettings
+   - Cache settings in Redis for performance
+
+2. Friend Management:
+   - Follow/Unfollow system with privacy controls
+   - Block user functionality
+   - Follow requests for private accounts
+
+3. Privacy & Security:
+   - Respect visibility settings in API responses
+   - Encrypted passcode storage (bcrypt)
+   - Validate passcode on client and server
+
+4. Settings Synchronization:
+   - Settings should sync across devices
+   - Use WebSocket for real-time settings updates
+   - Version settings to handle conflicts
+
+=====================================================
+END OF SPECIFICATION
+=====================================================

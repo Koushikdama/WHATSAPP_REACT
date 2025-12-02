@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles (for chat lists, search, etc.)
+      allow read: if isAuthenticated();
+      // Users can only create their own profile (userId must match auth.uid)
+      allow create: if isOwner(userId);
+      // Users can update their own profile OR update follower/following counts
+      allow update: if isOwner(userId) || 
+        (isAuthenticated() && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount', 'followingCount']));
+      // Users can only delete their own profile
+      allow delete: if isOwner(userId);
+    }
+    
+    // Chats collection
+    match /chats/{chatId} {
+      // Can read if user is a participant in the chat
+      allow read: if isAuthenticated() && 
+        request.auth.uid in resource.data.participants;
+      // Can create if user is one of the participants
+      allow create: if isAuthenticated() && 
+        request.auth.uid in request.resource.data.participants;
+      // Can update if user is a participant
+      allow update: if isAuthenticated() && 
+        request.auth.uid in resource.data.participants;
+      // Prevent chat deletion for data integrity
+      allow delete: if false;
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Can read messages if user is in the parent chat
+        allow read: if isAuthenticated() && 
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        // Can create messages if user is in the parent chat
+        allow create: if isAuthenticated() && 
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        // Can update messages if user is in the parent chat
+        allow update: if isAuthenticated() && 
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        // Can only delete own messages
+        allow delete: if isAuthenticated() && 
+          request.auth.uid == resource.data.senderId;
+      }
+    }
+    
+    // Statuses collection
+    // Statuses are stored in a flat collection with userId field
+    match /statuses/{statusId} {
+      // Anyone authenticated can read statuses
+      allow read: if isAuthenticated();
+      // Users can create statuses
+      allow create: if isAuthenticated();
+      // Users can only update/delete statuses they own (check userId field)
+      allow update, delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Calls collection
+    match /calls/{callId} {
+      // Can read if user is caller or receiver
+      allow read: if isAuthenticated() && 
+        (request.auth.uid == resource.data.callerId || 
+         request.auth.uid == resource.data.receiverId);
+      // Can create if user is the caller
+      allow create: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.callerId;
+      // Can update if user is caller or receiver
+      allow update: if isAuthenticated() && 
+        (request.auth.uid == resource.data.callerId || 
+         request.auth.uid == resource.data.receiverId);
+      // Prevent call history deletion
+      allow delete: if false;
+    }
+    
+    // Notifications collection
+    match /notifications/{userId}/userNotifications/{notificationId} {
+      // Users can only read their own notifications
+      allow read: if isOwner(userId);
+      // System can create notifications for users
+      allow create: if isAuthenticated();
+      // Users can update their own notifications (mark as read, etc.)
+      allow update: if isOwner(userId);
+      // Users can delete their own notifications
+      allow delete: if isOwner(userId);
+    }
+    
+    // Followers collection
+    match /followers/{userId}/userFollowers/{followerId} {
+      // Anyone authenticated can read followers (unless user has privacy settings)
+      allow read: if isAuthenticated();
+      // Can create follower relationship
+      allow create: if isAuthenticated();
+      // Can delete if you're the user or the follower
+      allow delete: if isOwner(userId) || isOwner(followerId);
+    }
+    
+    // Following collection
+    match /following/{userId}/userFollowing/{followingId} {
+      // Anyone authenticated can read following list (unless user has privacy settings)
+      allow read: if isAuthenticated();
+      // Can create following relationship
+      allow create: if isAuthenticated();
+      // Can only delete your own following relationships
+      allow delete: if isOwner(userId);
+    }
+  }
+}

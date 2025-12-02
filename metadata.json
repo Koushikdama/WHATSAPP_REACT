@@ -1,0 +1,8 @@
+{
+  "name": " WhatsAppUI",
+  "description": "A responsive React messaging UI that mimics WhatsApp's design for both mobile and web layouts. It features chat lists, message views, status updates, and call logs, all populated with realistic sample data.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
