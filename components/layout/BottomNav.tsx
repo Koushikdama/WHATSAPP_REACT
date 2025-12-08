@@ -6,20 +6,20 @@ import NotificationBadge from '../ui/NotificationBadge';
 const BottomNav = () => {
   const activeLinkClass = "text-primary";
   const inactiveLinkClass = "text-gray-400";
-  const baseLinkClass = "flex flex-col items-center justify-center w-full h-full pt-1 relative";
+  const baseLinkClass = "flex flex-col items-center justify-center w-full h-full py-2 relative transition-all duration-200";
 
   return (
-    <div className="flex-shrink-0 bg-[#202c33] flex justify-around items-center h-16 border-t border-gray-700">
+    <div className="flex-shrink-0 bg-[#202c33] flex justify-around items-center h-16 md:h-14 border-t border-gray-700">
       <NavLink to="/" end className={({ isActive }) => `${baseLinkClass} ${isActive ? activeLinkClass : inactiveLinkClass}`}>
-        <ChatIcon className="h-6 w-6" />
+        <ChatIcon className="h-6 w-6 md:h-5 md:w-5" />
         <span className="text-xs mt-1">Chats</span>
       </NavLink>
       <NavLink to="/status" className={({ isActive }) => `${baseLinkClass} ${isActive ? activeLinkClass : inactiveLinkClass}`}>
-        <StatusIcon className="h-6 w-6" />
+        <StatusIcon className="h-6 w-6 md:h-5 md:w-5" />
         <span className="text-xs mt-1">Status</span>
       </NavLink>
       <NavLink to="/calls" className={({ isActive }) => `${baseLinkClass} ${isActive ? activeLinkClass : inactiveLinkClass}`}>
-        <PhoneIcon className="h-6 w-6" />
+        <PhoneIcon className="h-6 w-6 md:h-5 md:w-5" />
         <span className="text-xs mt-1">Calls</span>
       </NavLink>
     </div>

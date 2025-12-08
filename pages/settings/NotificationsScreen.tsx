@@ -5,6 +5,9 @@ import { useAppContext } from '../../context/AppContext';
 import { getUserInfo, getNotifications } from '../../api';
 import { User } from '../../types';
 import { MOCK_USERS } from '../../services/mockData';
+import { formatRelativeTime } from '../../utils/date/dateFormatter';
+import { groupByTime } from '../../utils/date/groupByTime';
+import { EmptyStateMessage } from '../../components/common';
 
 type NotificationFilter = 'Follows' | 'Requests';
 
@@ -107,18 +110,7 @@ const NotificationsScreen = () => {
     }
   };
 
-  const formatTime = (timestamp: any) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
-    return `${Math.floor(diffInSeconds / 604800)}w`;
-  };
 
   const getNotificationContent = (notif: EnrichedNotification) => {
     const userName = notif.fromUser?.name || 'Someone';
@@ -157,28 +149,7 @@ const NotificationsScreen = () => {
     }
   };
 
-  const groupNotificationsByTime = (notifs: EnrichedNotification[]) => {
-    const today: EnrichedNotification[] = [];
-    const thisWeek: EnrichedNotification[] = [];
-    const earlier: EnrichedNotification[] = [];
 
-    const now = new Date();
-
-    notifs.forEach(notif => {
-      const date = notif.createdAt?.toDate?.() || new Date(notif.createdAt);
-      const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (diffInDays === 0) {
-        today.push(notif);
-      } else if (diffInDays < 7) {
-        thisWeek.push(notif);
-      } else {
-        earlier.push(notif);
-      }
-    });
-
-    return { today, thisWeek, earlier };
-  };
 
   // Filter notifications based on active filter
   const filteredNotifications = notifications.filter(notif => {
@@ -192,7 +163,7 @@ const NotificationsScreen = () => {
     }
   });
 
-  const { today, thisWeek, earlier } = groupNotificationsByTime(filteredNotifications);
+  const { today, thisWeek, earlier } = groupByTime(filteredNotifications, (notif) => notif.createdAt);
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const renderNotification = (notif: EnrichedNotification) => {
@@ -230,7 +201,7 @@ const NotificationsScreen = () => {
             <span className="font-semibold">{notif.fromUser?.name || 'Someone'}</span>{' '}
             <span className="text-gray-300">{content.text.substring(content.text.indexOf(' '))}</span>
           </p>
-          <p className="text-xs text-gray-500 mt-1">{formatTime(notif.createdAt)}</p>
+          <p className="text-xs text-gray-500 mt-1">{formatRelativeTime(notif.createdAt)}</p>
 
           {/* Action Buttons */}
           {content.action === 'follow_request' && (
@@ -313,16 +284,15 @@ const NotificationsScreen = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
         ) : filteredNotifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-20 text-center">
-            <div className="text-6xl mb-4">🔔</div>
-            <h3 className="text-lg font-semibold text-white mb-2">No notifications yet</h3>
-            <p className="text-sm text-gray-400 max-w-xs">
-              {activeFilter === 'Requests'
+          <EmptyStateMessage
+            icon="🔔"
+            title="No notifications yet"
+            message={
+              activeFilter === 'Requests'
                 ? "You don't have any follow requests"
                 : "You don't have any follow notifications"
-              }
-            </p>
-          </div>
+            }
+          />
         ) : (
           <div>
             {/* Today */}

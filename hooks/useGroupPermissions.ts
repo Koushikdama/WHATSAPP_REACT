@@ -9,6 +9,8 @@ export interface GroupPermissions {
     canChangeGroupInfo: boolean;
     canChangeGroupSettings: boolean;
     canDeleteGroup: boolean;
+    canPin: boolean; // Can pin messages
+    canManageMessages: boolean; // Can manage all messages
     canDeleteMessage: (messageAuthorId: string) => boolean;
 
     // Role checks
@@ -62,6 +64,9 @@ export const useGroupPermissions = (
             // Members can only delete their own messages
             return messageAuthorId === currentUserId;
         },
+
+        canPin: isAdminOrCoAdmin, // Admins and co-admins can pin
+        canManageMessages: isAdminOrCoAdmin,
 
         // Role checks
         isAdmin,

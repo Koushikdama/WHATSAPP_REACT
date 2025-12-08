@@ -40,6 +40,30 @@ export const registerUser = async (email: string, password: string, name: string
         // Appearance
         fontSize: 'medium' as 'small' | 'medium' | 'large',
         wallpaper: 'https://i.redd.it/qwd83nc4xxf41.jpg',
+
+        // Theme & UI Settings (for cross-device sync)
+        themeSettings: {
+            themeColor: { name: 'green', from: '#00a884', to: '#008a69' },
+            toggleOnColor: { name: 'green', from: '#00a884', to: '#008a69' },
+            toggleOffColor: { name: 'gray', color: '#374151' },
+            chatBackground: 'https://i.redd.it/qwd83nc4xxf41.jpg',
+            uiStyle: 'normal' as 'normal' | 'glossy',
+            animationsEnabled: true,
+            fontSize: 'medium' as 'small' | 'medium' | 'large',
+            headerAnimation: 'none' as 'none' | 'shine' | 'wave',
+            swipeSensitivity: 50,
+            wallpaperQuality: 'medium' as 'low' | 'medium' | 'high',
+        },
+
+        // Security & Passcode Settings (for cross-device sync)
+        passcodeSettings: {
+            lockedChats: { enabled: true, passcode: "1234" },
+            vanishMode: { enabled: true, passcode: "5678" },
+            dailyChatLock: { enabled: true, passcode: "0000" },
+        },
+
+        // Locked dates (empty for new users)
+        lockedDates: {} as Record<string, string[]>,
     };
 
     const newUser: User = {

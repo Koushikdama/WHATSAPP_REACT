@@ -6,6 +6,9 @@ import { useAppContext } from '../../context/AppContext';
 import { formatTimestamp } from '../../utils/date/dateFormatter';
 import ConfirmationDialog from '../ui/ConfirmationDialog';
 import { useGroupPermissions } from '../../hooks/useGroupPermissions';
+import { canEditMessage, getEditTimeRemaining, canPinMessage, canBookmarkMessage } from '../../utils/message/messageUtils';
+import { Pin, Bookmark, BookmarkCheck, MailOpen, MessageSquare } from 'lucide-react';
+import ThreadPreview from '../threads/ThreadPreview';
 
 interface MessageBubbleProps {
   message: Message;
@@ -20,8 +23,9 @@ interface MessageBubbleProps {
   onToggleSelection: (messageIds: string[]) => void;
   onEnterSelectionMode: (messageIds: string[]) => void;
   searchTerm?: string;
-  showingReactions?: string | null; // ID of message showing reactions
-  onShowReactions?: (messageId: string | null) => void; // Callback to set which message shows reactions
+  showingReactions?: string | null;
+  onShowReactions?: (messageId: string | null) => void;
+  onOpenThread?: (message: Message) => void; // Phase 2: Open thread view
 }
 
 const EMOJI_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -40,7 +44,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onEnterSelectionMode,
   searchTerm,
   showingReactions,
-  onShowReactions
+  onShowReactions,
+  onOpenThread, // Phase 2: Thread support
 }) => {
   const { currentUser, deleteMessage, conversations, reactToMessage, voteOnPoll, users } = useAppContext();
 
@@ -356,6 +361,30 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               {renderStatus()}
             </div>
 
+            {/* Pinned indicator */}
+            {message.isPinned && (
+              <div className="flex items-center mt-1 space-x-1">
+                <Pin className="h-3 w-3 text-primary" />
+                <span className="text-xs text-primary">Pinned</span>
+              </div>
+            )}
+
+            {/* Bookmarked indicator for current user */}
+            {message.bookmarkedBy?.includes(currentUser.id) && (
+              <div className="flex items-center mt-1 space-x-1">
+                <BookmarkCheck className="h-3 w-3 text-yellow-400" />
+                <span className="text-xs text-yellow-400">Saved</span>
+              </div>
+            )}
+
+            {/* Phase 2: Thread Preview */}
+            {onOpenThread && (
+              <ThreadPreview
+                message={message}
+                onClick={() => onOpenThread(message)}
+              />
+            )}
+
             <div className={`absolute top-1 right-1 z-10`}>
               <button onClick={() => setIsOptionsOpen(o => !o)} className={`p-1 rounded-full transition-opacity opacity-0 group-hover:opacity-100 ${isOptionsOpen ? 'opacity-100' : ''}`}>
                 <CaretDownIcon className="h-5 w-5 text-gray-400" />
@@ -363,11 +392,89 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
           </div>
           {isOptionsOpen && (
-            <div ref={optionsMenuRef} className={`absolute top-0 mt-8 w-48 bg-[#233138] rounded-md shadow-lg z-20 py-1 ${isSent ? 'right-0' : 'left-auto'}`}>
-              <button onClick={() => { onReply(message); setIsOptionsOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]">Reply</button>
-              {isSent && message.messageType === 'text' && <button onClick={() => { onEdit(message); setIsOptionsOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]">Edit</button>}
+            <div ref={optionsMenuRef} className={`absolute top-0 mt-8 w-56 bg-[#233138] rounded-md shadow-lg z-20 py-1 ${isSent ? 'right-0' : 'left-auto'}`}>
+              <button onClick={() => { onReply(message); setIsOptionsOpen(false); }} className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]">
+                <ReplyIcon className="h-4 w-4" />
+                <span>Reply</span>
+              </button>
+
+              {/* Phase 2: Reply in Thread (for group chats) */}
+              {chat?.conversationType === 'GROUP' && onOpenThread && (
+                <button
+                  onClick={() => {
+                    onOpenThread(message);
+                    setIsOptionsOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span>Reply in Thread</span>
+                </button>
+              )}
+
+              {/* Edit with time remaining */}
+              {isSent && message.messageType === 'text' && canEditMessage(message, currentUser.id) && (
+                <button onClick={() => { onEdit(message); setIsOptionsOpen(false); }} className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]">
+                  <div className="flex items-center space-x-2">
+                    <span>Edit</span>
+                  </div>
+                  <span className="text-xs text-gray-500">{getEditTimeRemaining(message)}</span>
+                </button>
+              )}
+
+              {/* Pin/Unpin message */}
+              {canPinMessage(message) && permissions.canPin && (
+                <button
+                  onClick={() => {
+                    /* TODO: Add pin/unpin handler */
+                    setIsOptionsOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]"
+                >
+                  <Pin className="h-4 w-4" />
+                  <span>{message.isPinned ? 'Unpin' : 'Pin'}</span>
+                </button>
+              )}
+
+              {/* Bookmark */}
+              {canBookmarkMessage(message) && (
+                <button
+                  onClick={() => {
+                    /* TODO: Add bookmark handler */
+                    setIsOptionsOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]"
+                >
+                  {message.bookmarkedBy?.includes(currentUser.id) ? (
+                    <>
+                      <BookmarkCheck className="h-4 w-4 text-yellow-400" />
+                      <span>Remove Bookmark</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bookmark className="h-4 w-4" />
+                      <span>Bookmark</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Mark as Unread */}
+              <button
+                onClick={() => {
+                  /* TODO: Add mark as unread handler */
+                  setIsOptionsOpen(false);
+                }}
+                className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]"
+              >
+                <MailOpen className="h-4 w-4" />
+                <span>Mark as Unread</span>
+              </button>
+
+              <div className="border-t border-gray-700 my-1"></div>
+
               <button onClick={() => handleDeleteClick('me')} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]">Delete for me</button>
-              {canDeleteForEveryone && <button onClick={() => handleDeleteClick('everyone')} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#111b21]">Delete for everyone</button>}
+              {canDeleteForEveryone && <button onClick={() => handleDeleteClick('everyone')} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#111b21]">Delete for everyone</button>}
             </div>
           )}
         </div>

@@ -13,31 +13,25 @@ export const chatToConversation = (chat: Chat, users: User[], currentUserId: str
         otherUser = users.find(u => u.id === otherUserId);
     }
 
-    // Get last message info
-    const lastMessage = chat.messages && chat.messages.length > 0
-        ? chat.messages[chat.messages.length - 1]
-        : null;
-
-    const lastMessageSender = lastMessage
-        ? users.find(u => u.id === lastMessage.senderId)
-        : null;
+    // Note: Messages are stored separately in Firestore subcollection
+    // This function uses the lastMessage fields that are denormalized on Chat
 
     return {
         id: chat.id,
         conversationType: isGroup ? 'GROUP' : 'INDIVIDUAL',
         name: chat.name || otherUser?.name || 'Unknown',
         profileImage: chat.avatar || otherUser?.avatar || 'https://via.placeholder.com/150',
-        lastMessage: lastMessage?.content || '',
-        lastMessageAt: lastMessage?.timestamp || new Date().toISOString(),
-        lastMessageType: lastMessage?.messageType || 'text',
-        lastMessageSentById: lastMessage?.senderId || '',
-        lastMessageSentByName: lastMessageSender?.name || '',
+        lastMessage: '',  // Will be populated by component from messages
+        lastMessageAt: chat.updatedAt || chat.createdAt || new Date().toISOString(),
+        lastMessageType: 'text',
+        lastMessageSentById: '',
+        lastMessageSentByName: '',
         unreadCount: chat.unreadCount || 0,
         isOnline: !isGroup && (otherUser?.isOnline || otherUser?.online),
         isPinned: chat.isPinned,
         isLocked: chat.isLocked,
         isVanishMode: chat.isVanishMode,
-        theme: chat.theme,
+        theme: chat.theme || undefined,
     };
 };
 

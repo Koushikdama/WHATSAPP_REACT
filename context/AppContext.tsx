@@ -20,6 +20,12 @@ import {
 } from '../api';
 import { subscribeToUserChats } from '../services/firebase/chat.service';
 import { updateUserProfile } from '../services/firebase/user.service';
+import {
+  getAllUserSettings,
+  updateThemeSettings,
+  updatePasscodeSettings,
+  updateLockedDates
+} from '../services/firebase/user.settings.service';
 
 // Firebase imports removed
 import { useAuth } from './AuthContext';
@@ -118,7 +124,9 @@ interface AppContextType {
   clearUnlockedDatesForSession: (chatId: string) => void;
   // Passcode Manager
   passcodeSettings: PasscodeSettings;
-  updatePasscodeSettings: (settings: Partial<PasscodeSettings>) => void;
+  updatePasscodeSettings: (settings: Partial<PasscodeSettings>) => Promise<void>;
+  // Theme Settings (now syncs to Firebase)
+  updateThemeSettings: (settings: Partial<ThemeSettings>) => Promise<void>;
   // Status Viewer
   activeStatusUser: User | null;
   openStatusViewer: (userId: string) => void;
@@ -152,26 +160,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const navigate = useNavigate();
 
   const [isLockedViewActive, setIsLockedViewActive] = useState(false);
+
+  // Initialize from localStorage, will be overwritten by Firebase data
   const [lockedDates, setLockedDates] = useState<Record<string, string[]>>(() => {
     const saved = localStorage.getItem('whatsapp-locked-dates');
     return saved ? JSON.parse(saved) : {};
   });
+
   const [unlockedDatesForSession, setUnlockedDatesForSession] = useState<Record<string, string[]>>({});
   const [passwordPrompt, setPasswordPrompt] = useState<PasswordPromptState>({ isOpen: false, title: '', placeholder: '', onSubmit: () => { } });
 
+  // Initialize from localStorage, will be overwritten by Firebase data
   const [passcodeSettings, setPasscodeSettings] = useState<PasscodeSettings>(() => {
     const saved = localStorage.getItem('whatsapp-passcode-settings');
     return saved ? JSON.parse(saved) : defaultPasscodes;
   });
 
   const [activeStatusUser, setActiveStatusUser] = useState<User | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
-  const updatePasscodeSettings = (settings: Partial<PasscodeSettings>) => {
-    setPasscodeSettings(prev => {
-      const newSettings = { ...prev, ...settings };
-      localStorage.setItem('whatsapp-passcode-settings', JSON.stringify(newSettings));
-      return newSettings;
-    });
+  // Wrapper function to update passcode settings in Firebase + localStorage
+  const updatePasscodeSettingsWrapper = async (settings: Partial<PasscodeSettings>) => {
+    if (!authUser) {
+      // Fallback to localStorage if not logged in
+      setPasscodeSettings(prev => {
+        const newSettings = { ...prev, ...settings };
+        localStorage.setItem('whatsapp-passcode-settings', JSON.stringify(newSettings));
+        return newSettings;
+      });
+      return;
+    }
+
+    // Update local state immediately for UI responsiveness
+    setPasscodeSettings(prev => ({ ...prev, ...settings }));
+
+    // Update Firebase in background
+    try {
+      await updatePasscodeSettings(authUser.id, settings);
+    } catch (error) {
+      console.error('Failed to sync passcode settings to Firebase:', error);
+      showToast('Failed to sync settings', 'error');
+    }
   };
 
   const [securityNotificationsEnabled, setSecurityNotificationsEnabled] = useState(() => {
@@ -192,10 +221,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.setItem('security-notifications-enabled', JSON.stringify(securityNotificationsEnabled));
   }, [securityNotificationsEnabled]);
 
-  useEffect(() => {
-    localStorage.setItem('whatsapp-locked-dates', JSON.stringify(lockedDates));
-  }, [lockedDates]);
-
+  // Initialize from localStorage, will be overwritten by Firebase data
   const [themeSettings, setThemeSettings] = useState<ThemeSettings>(() => {
     try {
       const savedSettings = localStorage.getItem('whatsapp-theme-settings');
@@ -204,6 +230,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return defaultTheme;
     }
   });
+
+  // Wrapper function to update theme settings in Firebase + localStorage
+  const updateThemeSettingsWrapper = async (newSettings: Partial<ThemeSettings>) => {
+    if (!authUser) {
+      // Fallback to localStorage if not logged in
+      setThemeSettings(prev => {
+        const updated = { ...prev, ...newSettings };
+        localStorage.setItem('whatsapp-theme-settings', JSON.stringify(updated));
+        return updated;
+      });
+      return;
+    }
+
+    // Update local state immediately for UI responsiveness
+    setThemeSettings(prev => ({ ...prev, ...newSettings }));
+
+    // Update Firebase in background
+    try {
+      await updateThemeSettings(authUser.id, newSettings);
+    } catch (error) {
+      console.error('Failed to sync theme to Firebase:', error);
+      showToast('Failed to sync theme settings', 'error');
+    }
+  };
+
+  // Wrapper function to update locked dates in Firebase + localStorage
+  const updateLockedDatesWrapper = async (newDates: Record<string, string[]>) => {
+    if (!authUser) {
+      // Fallback to localStorage if not logged in
+      setLockedDates(newDates);
+      localStorage.setItem('whatsapp-locked-dates', JSON.stringify(newDates));
+      return;
+    }
+
+    // Update local state immediately
+    setLockedDates(newDates);
+
+    // Update Firebase in background
+    try {
+      await updateLockedDates(authUser.id, newDates);
+    } catch (error) {
+      console.error('Failed to sync locked dates to Firebase:', error);
+    }
+  };
 
 
   // Get authenticated user from AuthContext
@@ -228,6 +298,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     initPushNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser]);
+
+  // Load user settings from Firebase when user logs in
+  useEffect(() => {
+    const loadUserSettings = async () => {
+      if (!authUser) {
+        setSettingsLoaded(false);
+        return;
+      }
+
+      try {
+        // Load all settings from Firebase (will also cache in localStorage)
+        const settings = await getAllUserSettings(authUser.id);
+
+        if (settings) {
+          // Use Firebase data as source of truth
+          if (settings.themeSettings) {
+            setThemeSettings(settings.themeSettings);
+          }
+          if (settings.passcodeSettings) {
+            setPasscodeSettings(settings.passcodeSettings);
+          }
+          if (settings.lockedDates) {
+            setLockedDates(settings.lockedDates);
+          }
+        } else {
+          // No settings in Firebase yet - migrate from localStorage
+          console.log('No settings in Firebase, will use localStorage cache');
+        }
+
+        setSettingsLoaded(true);
+      } catch (error) {
+        console.error('Error loading user settings from Firebase:', error);
+        // Fallback to localStorage on error
+        setSettingsLoaded(true);
+      }
+    };
+
+    loadUserSettings();
   }, [authUser]);
 
   // Initialize data when authenticated user is available
@@ -419,13 +528,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const title = isCurrentlyLocked ? `Unlock messages for this day?` : `Lock messages for this day?`;
     showPasswordPrompt(title, `Daily Lock Password (${passcodeSettings.dailyChatLock.passcode})`, (password) => {
       if (password === passcodeSettings.dailyChatLock.passcode) {
-        setLockedDates(prev => {
-          const chatLocks = prev[chatId] || [];
-          const newLocks = isCurrentlyLocked
-            ? chatLocks.filter(d => d !== date)
-            : [...chatLocks, date];
-          return { ...prev, [chatId]: newLocks };
-        });
+        // Calculate new locked dates
+        const chatLocks = lockedDates[chatId] || [];
+        const newLocks = isCurrentlyLocked
+          ? chatLocks.filter(d => d !== date)
+          : [...chatLocks, date];
+        const newLockedDates = { ...lockedDates, [chatId]: newLocks };
+
+        // Update using wrapper (syncs to Firebase)
+        updateLockedDatesWrapper(newLockedDates);
+
         if (isCurrentlyLocked) {
           setUnlockedDatesForSession(prev => ({
             ...prev,
@@ -612,7 +724,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     promptAndToggleVanishMode,
     clearUnlockedDatesForSession,
     passcodeSettings,
-    updatePasscodeSettings,
+    updatePasscodeSettings: updatePasscodeSettingsWrapper,
+    updateThemeSettings: updateThemeSettingsWrapper,
     activeStatusUser,
     openStatusViewer,
     closeStatusViewer,

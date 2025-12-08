@@ -25,6 +25,10 @@ import AuthScreen from './pages/auth/AuthScreen';
 import FollowRequestsScreen from './components/FollowRequestsScreen';
 import ActivityScreen from './pages/activity/ActivityScreen';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import WorkflowListPage from './pages/workflows/WorkflowListPage';
+import WorkflowBuilderPage from './pages/workflows/WorkflowBuilderPage';
+import ScheduledMessagesPage from './pages/workflows/ScheduledMessagesPage';
+import CreateGroupScreen from './pages/groups/CreateGroupScreen';
 
 
 import { CloseIcon } from './components/icons';
@@ -44,6 +48,7 @@ const ChatWindowWrapper = () => {
 // Import test utilities (available in browser console)
 import './utils/testing/testWebRTC';
 import './utils/testing/testNotifications';
+import { useScheduler } from './hooks/useScheduler';
 
 const EMOJI_REACTIONS = ['❤️', '😂', '😮', '😢', '🙏', '🔥'];
 
@@ -148,6 +153,9 @@ const AppContent = () => {
   const location = useLocation();
   const onCallScreen = location.pathname.startsWith('/call/');
 
+  // Initialize scheduler
+  useScheduler();
+
   // Show auth screen if not authenticated
   if (authLoading) {
     console.log('⏳ Auth is loading...');
@@ -235,6 +243,11 @@ const AppContent = () => {
             <DiscoverScreen />
           </ProtectedRoute>
         } />
+        <Route path="/create-group" element={
+          <ProtectedRoute>
+            <CreateGroupScreen />
+          </ProtectedRoute>
+        } />
         <Route path="/contact-info/:id" element={
           <ProtectedRoute>
             <ContactInfoWrapper />
@@ -243,6 +256,26 @@ const AppContent = () => {
         <Route path="/call/:id" element={
           <ProtectedRoute>
             <CallScreen />
+          </ProtectedRoute>
+        } />
+        <Route path="/workflows" element={
+          <ProtectedRoute>
+            <WorkflowListPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/workflows/new" element={
+          <ProtectedRoute>
+            <WorkflowBuilderPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/workflows/edit/:id" element={
+          <ProtectedRoute>
+            <WorkflowBuilderPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/scheduled-messages" element={
+          <ProtectedRoute>
+            <ScheduledMessagesPage />
           </ProtectedRoute>
         } />
       </Routes>

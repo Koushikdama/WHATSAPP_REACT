@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SettingsLayout from '../../components/layout/SettingsLayout';
 import { useAppContext } from '../../context/AppContext';
-import ThemeToggle from '../../components/ui/ThemeToggle';
 import { updateUserSettings } from '../../services/firebase/user.settings.service';
 import { useToast } from '../../context/ToastContext';
 import type { UserSettings } from '../../types';
+import { SettingItem } from '../../components/common';
 
 const PrivacySettingsScreen = () => {
     const navigate = useNavigate();
@@ -54,65 +54,6 @@ const PrivacySettingsScreen = () => {
         }
     };
 
-    const SettingItem = ({
-        title,
-        description,
-        value,
-        onChange
-    }: {
-        title: string;
-        description: string;
-        value: boolean;
-        onChange: (value: boolean) => void;
-    }) => (
-        <div className="flex items-center justify-between p-4 hover:bg-[#202c33] transition-colors">
-            <div className="flex-1">
-                <h3 className="text-white font-medium">{title}</h3>
-                <p className="text-sm text-gray-400 mt-1">{description}</p>
-            </div>
-            <ThemeToggle
-                checked={value}
-                onChange={onChange}
-                disabled={loading}
-            />
-        </div>
-    );
-
-    const SelectSettingItem = ({
-        title,
-        description,
-        value,
-        options,
-        onChange
-    }: {
-        title: string;
-        description: string;
-        value: string;
-        options: { label: string; value: string }[];
-        onChange: (value: string) => void;
-    }) => (
-        <div className="p-4 hover:bg-[#202c33] transition-colors">
-            <div className="mb-3">
-                <h3 className="text-white font-medium">{title}</h3>
-                <p className="text-sm text-gray-400 mt-1">{description}</p>
-            </div>
-            <div className="flex gap-2">
-                {options.map((option) => (
-                    <button
-                        key={option.value}
-                        onClick={() => onChange(option.value)}
-                        disabled={loading}
-                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${value === option.value
-                                ? 'bg-primary text-white'
-                                : 'bg-[#2a3942] text-gray-300 hover:bg-[#374248]'
-                            } disabled:opacity-50`}
-                    >
-                        {option.label}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
 
     if (!currentUser) return null;
 
@@ -124,33 +65,40 @@ const PrivacySettingsScreen = () => {
                     <h2 className="text-primary font-semibold text-sm mb-3">SOCIAL PRIVACY</h2>
 
                     <SettingItem
+                        type="toggle"
                         title="Hide Followers"
                         description="Prevent others from seeing who follows you"
                         value={settings.hideFollowers ?? false}
                         onChange={(value) => handleSettingChange('hideFollowers', value)}
+                        disabled={loading}
                     />
 
                     <SettingItem
+                        type="toggle"
                         title="Hide Following"
                         description="Prevent others from seeing who you follow"
                         value={settings.hideFollowing ?? false}
                         onChange={(value) => handleSettingChange('hideFollowing', value)}
+                        disabled={loading}
                     />
                 </div>
 
                 {/* Read Receipts */}
                 <div>
                     <SettingItem
+                        type="toggle"
                         title="Read Receipts"
                         description="Let others know when you've read their messages"
                         value={settings.readReceipts ?? true}
                         onChange={(value) => handleSettingChange('readReceipts', value)}
+                        disabled={loading}
                     />
                 </div>
 
                 {/* Last Seen Visibility */}
                 <div>
-                    <SelectSettingItem
+                    <SettingItem
+                        type="select"
                         title="Last Seen"
                         description="Who can see when you were last online"
                         value={settings.lastSeenVisibility ?? 'everyone'}
@@ -160,12 +108,14 @@ const PrivacySettingsScreen = () => {
                             { label: 'Nobody', value: 'nobody' }
                         ]}
                         onChange={(value) => handleSettingChange('lastSeenVisibility', value)}
+                        disabled={loading}
                     />
                 </div>
 
                 {/* Profile Photo Visibility */}
                 <div>
-                    <SelectSettingItem
+                    <SettingItem
+                        type="select"
                         title="Profile Photo"
                         description="Who can see your profile photo"
                         value={settings.profilePhotoVisibility ?? 'everyone'}
@@ -175,6 +125,7 @@ const PrivacySettingsScreen = () => {
                             { label: 'Nobody', value: 'nobody' }
                         ]}
                         onChange={(value) => handleSettingChange('profilePhotoVisibility', value)}
+                        disabled={loading}
                     />
                 </div>
             </div>

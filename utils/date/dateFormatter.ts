@@ -94,3 +94,21 @@ export const getISODate = (timestamp: string): string => {
 
   return date.toISOString().split('T')[0];
 };
+
+/**
+ * Format timestamp as relative time (e.g., "Just now", "5m", "2h", "3d", "1w")
+ * Used for notifications, activity feeds, etc.
+ */
+export const formatRelativeTime = (timestamp: any): string => {
+  if (!timestamp) return '';
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
+  return `${Math.floor(diffInSeconds / 604800)}w`;
+};

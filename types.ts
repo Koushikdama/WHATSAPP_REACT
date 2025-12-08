@@ -48,6 +48,13 @@ export interface UserSettings {
   // Appearance
   fontSize: 'small' | 'medium' | 'large';
   wallpaper: string | null;
+
+  // Theme & UI Settings (stored in Firebase for cross-device sync)
+  themeSettings?: ThemeSettings;
+
+  // Security & Passcode Settings (stored in Firebase for cross-device sync)
+  passcodeSettings?: PasscodeSettings;
+  lockedDates?: Record<string, string[]>; // { [chatId]: [date1, date2, ...] }
 }
 
 export interface PollOption {
@@ -65,6 +72,7 @@ export interface Message {
   senderId: string;
   receiverId?: string;
   groupId?: string;
+  channelId?: string; // Phase 2: Channel ID for topic channels
   senderName?: string;
   content: string;
   timestamp: string;
@@ -81,11 +89,63 @@ export interface Message {
   duration?: string;
   deleteForEveryone?: boolean;
   isEdited?: boolean;
+  editedAt?: string; // Timestamp when message was last edited
   isSeen?: boolean;
   deleteFor?: string;
   isDeleted?: boolean;
   reactions?: { [emoji: string]: string[] };
   pollInfo?: PollInfo;
+
+  // Phase 1: Message enhancements
+  isSilent?: boolean; // Send without notification
+  isPinned?: boolean; // Pinned message
+  pinnedBy?: string; // User ID who pinned
+  pinnedAt?: string; // When it was pinned
+  isBookmarked?: boolean; // Saved/bookmarked by current user
+  bookmarkedBy?: string[]; // Array of user IDs who bookmarked
+  isMarkedUnread?: boolean; // Mark as unread flag per user
+  markedUnreadBy?: string[]; // Users who marked as unread
+
+  // Phase 2: Threaded replies & collaboration
+  threadId?: string; // Parent thread ID if this is a thread reply
+  threadCount?: number; // Number of replies in this thread
+  lastThreadReply?: {
+    senderId: string;
+    senderName: string;
+    timestamp: string;
+    preview: string;
+  };
+  isThreadStarter?: boolean; // True if this message has thread replies
+  threadParticipants?: string[]; // Users who replied in thread
+}
+
+// Phase 2: Thread interface
+export interface Thread {
+  id: string;
+  parentMessageId: string;
+  chatId: string;
+  channelId?: string;
+  participants: string[]; // Users who participated in thread
+  replyCount: number;
+  lastReplyAt: string;
+  lastReplyBy: string;
+  isFollowing?: boolean; // User is following this thread
+}
+
+// Phase 2: Channel interface (Discord-style topics)
+export interface Channel {
+  id: string;
+  groupId: string;
+  name: string;
+  description?: string;
+  type: 'text' | 'voice' | 'announcement';
+  createdBy: string;
+  createdAt: string;
+  position: number; // Display order
+  permissions?: {
+    canPost: string[]; // User IDs or role IDs who can post
+    canRead: string[]; // User IDs or role IDs who can read
+  };
 }
 
 export interface Chat {
@@ -94,10 +154,15 @@ export interface Chat {
   participants: string[];
   name?: string;
   avatar?: string;
-  admins?: string[];  // For groups
-  createdBy?: string; // For groups
+  admins?: string[];
+  createdBy?: string;
   createdAt?: any;
   updatedAt?: any;
+
+  // Phase 2: Group collaboration features
+  channels?: Channel[]; // Topic channels for groups
+  activeChannelId?: string; // Currently selected channel
+  hasThreads?: boolean; // Group supports threaded replies
   unreadCount?: number;
   isMuted?: boolean;
   isPinned?: boolean;
@@ -147,13 +212,75 @@ export interface Call {
 
 export interface StatusUpdate {
   id: string;
+  userId: string;
+  userName?: string;
+  userAvatar?: string;
   type: 'image' | 'video' | 'audio' | 'text';
   url?: string;
-  content?: string; // For text status
+  content?: string;
   timestamp: string;
   caption?: string;
   reactions?: string[];
   viewers?: string[];
+  expiresAt?: string;
+  createdAt?: string;
+
+  // Phase 4: Enhanced status features
+  music?: {
+    title: string;
+    artist: string;
+    albumArt?: string;
+    previewUrl?: string;
+    spotifyId?: string;
+  };
+  interactiveStickers?: InteractiveSticker[];
+  isHighlight?: boolean;
+  highlightCategory?: string;
+  closeFriendsOnly?: boolean;
+  viewerList?: StatusView[];
+  views?: string[];
+}
+
+export interface InteractiveSticker {
+  id: string;
+  type: 'poll' | 'question' | 'countdown' | 'quiz' | 'slider';
+  position: { x: number; y: number };
+  data: PollStickerData | QuestionStickerData | CountdownStickerData | QuizStickerData | SliderStickerData;
+}
+
+export interface PollStickerData {
+  question: string;
+  options: string[];
+  votes: Record<string, number>;
+}
+
+export interface QuestionStickerData {
+  question: string;
+  responses: Array<{ userId: string; userName: string; answer: string }>;
+}
+
+export interface CountdownStickerData {
+  title: string;
+  targetDate: string;
+}
+
+export interface QuizStickerData {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  responses: Record<string, number>;
+}
+
+export interface SliderStickerData {
+  question: string;
+  emoji: string;
+  responses: Record<string, number>;
+}
+
+export interface StatusView {
+  userId: string;
+  userName: string;
+  viewedAt: string;
 }
 
 export interface Status {

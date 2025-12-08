@@ -149,3 +149,120 @@ export const getChatSettings = async (chatId: string) => {
         return null;
     }
 };
+
+/**
+ * Update theme settings in Firebase and localStorage cache
+ */
+export const updateThemeSettings = async (
+    userId: string,
+    themeSettings: any
+): Promise<void> => {
+    try {
+        const userRef = doc(db, COLLECTIONS.USERS, userId);
+
+        // Update in Firebase using dot notation
+        const updates: any = {};
+        Object.keys(themeSettings).forEach(key => {
+            updates[`settings.themeSettings.${key}`] = themeSettings[key];
+        });
+
+        await updateDoc(userRef, updates);
+
+        // Update localStorage cache for fast access
+        const cached = localStorage.getItem('whatsapp-theme-settings');
+        const current = cached ? JSON.parse(cached) : {};
+        localStorage.setItem('whatsapp-theme-settings', JSON.stringify({
+            ...current,
+            ...themeSettings
+        }));
+    } catch (error) {
+        console.error('Error updating theme settings:', error);
+        throw error;
+    }
+};
+
+/**
+ * Update passcode settings in Firebase and localStorage cache
+ */
+export const updatePasscodeSettings = async (
+    userId: string,
+    passcodeSettings: any
+): Promise<void> => {
+    try {
+        const userRef = doc(db, COLLECTIONS.USERS, userId);
+
+        // Update in Firebase using dot notation
+        const updates: any = {};
+        Object.keys(passcodeSettings).forEach(key => {
+            updates[`settings.passcodeSettings.${key}`] = passcodeSettings[key];
+        });
+
+        await updateDoc(userRef, updates);
+
+        // Update localStorage cache
+        const cached = localStorage.getItem('whatsapp-passcode-settings');
+        const current = cached ? JSON.parse(cached) : {};
+        localStorage.setItem('whatsapp-passcode-settings', JSON.stringify({
+            ...current,
+            ...passcodeSettings
+        }));
+    } catch (error) {
+        console.error('Error updating passcode settings:', error);
+        throw error;
+    }
+};
+
+/**
+ * Update locked dates in Firebase and localStorage cache
+ */
+export const updateLockedDates = async (
+    userId: string,
+    lockedDates: Record<string, string[]>
+): Promise<void> => {
+    try {
+        const userRef = doc(db, COLLECTIONS.USERS, userId);
+
+        await updateDoc(userRef, {
+            'settings.lockedDates': lockedDates
+        });
+
+        // Update localStorage cache
+        localStorage.setItem('whatsapp-locked-dates', JSON.stringify(lockedDates));
+    } catch (error) {
+        console.error('Error updating locked dates:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get all user settings (including theme and passcode) from Firebase
+ * Also caches in localStorage for fast access
+ */
+export const getAllUserSettings = async (userId: string): Promise<any | null> => {
+    try {
+        const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, userId));
+
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const settings = userData.settings || {};
+
+            // Cache in localStorage for fast access
+            if (settings.themeSettings) {
+                localStorage.setItem('whatsapp-theme-settings', JSON.stringify(settings.themeSettings));
+            }
+            if (settings.passcodeSettings) {
+                localStorage.setItem('whatsapp-passcode-settings', JSON.stringify(settings.passcodeSettings));
+            }
+            if (settings.lockedDates) {
+                localStorage.setItem('whatsapp-locked-dates', JSON.stringify(settings.lockedDates));
+            }
+
+            return settings;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error fetching all user settings:', error);
+        return null;
+    }
+};

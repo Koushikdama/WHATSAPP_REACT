@@ -6,6 +6,7 @@ import { CheckIcon } from '../../components/icons';
 import { THEMES, gradients, TOGGLE_ON_COLORS, TOGGLE_OFF_COLORS } from '../../utils/theme/themes';
 import { ThemeSettings } from '../../types';
 import ThemeToggle from '../../components/ui/ThemeToggle';
+import { SettingsSection, SegmentedButton } from '../../components/common';
 
 const wallpapers = [
   'https://i.redd.it/qwd83nc4xxf41.jpg',
@@ -15,12 +16,7 @@ const wallpapers = [
   'https://picsum.photos/seed/wallpaper3/1080/1920',
 ];
 
-const SettingsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="py-4">
-    <h2 className="text-primary font-semibold text-sm mb-3">{title}</h2>
-    {children}
-  </div>
-);
+
 
 const ChatPreview: React.FC<{ settings: ThemeSettings; bubbleColor: string }> = ({ settings, bubbleColor }) => {
   const backgroundStyle = {
@@ -52,17 +48,17 @@ const ChatPreview: React.FC<{ settings: ThemeSettings; bubbleColor: string }> = 
 };
 
 const ChatsSettingsScreen = () => {
-  const { themeSettings, setThemeSettings } = useAppContext();
+  const { themeSettings, updateThemeSettings } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('display');
   const [previewToggle, setPreviewToggle] = useState(true);
-  
+
   const selectedThemeName = themeSettings.themeColor.name;
   const bubbleColor = THEMES[selectedThemeName as keyof typeof THEMES]?.bubbleColor || THEMES.default.bubbleColor;
 
-  const handleSettingChange = (key: keyof typeof themeSettings, value: any) => {
-    setThemeSettings(prev => ({ ...prev, [key]: value }));
+  const handleSettingChange = async (key: keyof typeof themeSettings, value: any) => {
+    await updateThemeSettings({ [key]: value });
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,34 +74,7 @@ const ChatsSettingsScreen = () => {
     }
   };
 
-  const renderSegmentedButton = (
-    options: { label: string; value: string }[],
-    currentValue: string,
-    onSelect: (value: any) => void
-  ) => {
-    const isGlossy = themeSettings.uiStyle === 'glossy';
-    return (
-        <div className="flex flex-wrap gap-2 bg-[#2a3942] rounded-lg p-1 w-full">
-        {options.map(({ label, value }) => {
-            const isSelected = currentValue === value;
-            return (
-            <button
-                key={value}
-                onClick={() => onSelect(value)}
-                className={`flex-grow px-3 py-1 text-sm rounded-md transition-colors text-center ${
-                    isSelected
-                    ? `text-white shadow ${isGlossy ? '' : 'bg-primary'}`
-                    : 'text-gray-300 hover:bg-[#3c4a54]'
-                } ${isSelected && isGlossy ? 'glossy-button' : ''}`}
-                style={isSelected && !isGlossy ? { backgroundImage: `linear-gradient(to right, ${themeSettings.themeColor.from}, ${themeSettings.themeColor.to})`} : {}}
-            >
-                {label}
-            </button>
-            );
-        })}
-        </div>
-    );
-  };
+
 
   return (
     <SettingsLayout title="Chats" onBack={() => navigate('/settings')}>
@@ -123,82 +92,86 @@ const ChatsSettingsScreen = () => {
         {activeTab === 'display' && (
           <div className="md:grid md:grid-cols-2 md:gap-8">
             <div className="mb-6 md:mb-0">
-                <SettingsSection title="Live Preview">
-                    <ChatPreview settings={themeSettings} bubbleColor={bubbleColor} />
-                </SettingsSection>
+              <SettingsSection title="Live Preview">
+                <ChatPreview settings={themeSettings} bubbleColor={bubbleColor} />
+              </SettingsSection>
             </div>
             <div className="divide-y divide-gray-800">
-                <SettingsSection title="Theme Gradient">
+              <SettingsSection title="Theme Gradient">
                 <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 gap-3 mt-2">
-                    {gradients.map(gradient => (
-                        <button key={gradient.name} onClick={() => handleSettingChange('themeColor', { name: gradient.name, from: gradient.gradient.from, to: gradient.gradient.to })}
-                            className={`w-full aspect-square rounded-full focus:outline-none flex-shrink-0 flex items-center justify-center ring-2 ring-offset-2 ring-offset-[#111b21] transition-all duration-200 hover:transform hover:scale-110 ${themeSettings.themeColor.name === gradient.name ? 'ring-white' : 'ring-transparent'}`}
-                            style={{ backgroundImage: `linear-gradient(to right, ${gradient.gradient.from}, ${gradient.gradient.to})`}}
-                        >
-                        {themeSettings.themeColor.name === gradient.name && <CheckIcon className="h-6 w-6 text-white" />}
-                        </button>
-                    ))}
+                  {gradients.map(gradient => (
+                    <button key={gradient.name} onClick={() => handleSettingChange('themeColor', { name: gradient.name, from: gradient.gradient.from, to: gradient.gradient.to })}
+                      className={`w-full aspect-square rounded-full focus:outline-none flex-shrink-0 flex items-center justify-center ring-2 ring-offset-2 ring-offset-[#111b21] transition-all duration-200 hover:transform hover:scale-110 ${themeSettings.themeColor.name === gradient.name ? 'ring-white' : 'ring-transparent'}`}
+                      style={{ backgroundImage: `linear-gradient(to right, ${gradient.gradient.from}, ${gradient.gradient.to})` }}
+                    >
+                      {themeSettings.themeColor.name === gradient.name && <CheckIcon className="h-6 w-6 text-white" />}
+                    </button>
+                  ))}
                 </div>
-                </SettingsSection>
+              </SettingsSection>
 
-                <SettingsSection title="Chat Wallpaper">
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
-                        {wallpapers.map(wp => (
-                            <button key={wp} onClick={() => handleSettingChange('chatBackground', wp)} className="w-full aspect-square rounded-lg overflow-hidden ring-2 ring-offset-2 ring-offset-[#111b21] focus:outline-none relative group transition-transform hover:scale-105">
-                            <div style={{ backgroundImage: `url(${wp})`, backgroundColor: wp.startsWith('#') ? wp : 'transparent' }} className="w-full h-full bg-cover bg-center"></div>
-                            <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${themeSettings.chatBackground === wp ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                                <CheckIcon className="h-8 w-8 text-white" />
-                            </div>
-                            </button>
-                        ))}
-                        <button onClick={() => fileInputRef.current?.click()} className="w-full aspect-square rounded-lg bg-[#2a3942] flex flex-col items-center justify-center text-gray-300 transition-transform hover:scale-105">
-                            <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>
-                            <span className="text-xs mt-1">Custom</span>
-                        </button>
-                    </div>
-                </SettingsSection>
-                
-                <SettingsSection title="Toggle Button Colors">
-                   <div className="flex items-center justify-between p-2 rounded-lg bg-[#2a3942]">
-                        <span className="text-white font-semibold">Preview</span>
-                        <ThemeToggle checked={previewToggle} onChange={setPreviewToggle} />
-                   </div>
-                   <div className="mt-4">
-                       <p className="text-sm text-gray-400 mb-2">On State</p>
-                       <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 gap-3">
-                           {TOGGLE_ON_COLORS.map(color => (
-                               // FIX: TOGGLE_ON_COLORS items do not have a nested 'gradient' property. Access 'from' and 'to' directly.
-                               <button key={color.name} onClick={() => handleSettingChange('toggleOnColor', { name: color.name, from: color.from, to: color.to })}
-                                   className={`w-full aspect-square rounded-full focus:outline-none flex items-center justify-center ring-2 ring-offset-2 ring-offset-[#111b21] ${themeSettings.toggleOnColor.name === color.name ? 'ring-white' : 'ring-transparent'}`}
-                                   style={{ backgroundImage: `linear-gradient(to right, ${color.from}, ${color.to})`}}
-                               >
-                               {themeSettings.toggleOnColor.name === color.name && <CheckIcon className="h-6 w-6 text-white" />}
-                               </button>
-                           ))}
-                       </div>
-                   </div>
-                   <div className="mt-4">
-                       <p className="text-sm text-gray-400 mb-2">Off State</p>
-                       <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 gap-3">
-                           {TOGGLE_OFF_COLORS.map(color => (
-                               <button key={color.name} onClick={() => handleSettingChange('toggleOffColor', color)}
-                                   className={`w-full aspect-square rounded-full focus:outline-none flex items-center justify-center ring-2 ring-offset-2 ring-offset-[#111b21] ${themeSettings.toggleOffColor.name === color.name ? 'ring-white' : 'ring-transparent'}`}
-                                   style={{ backgroundColor: color.color }}
-                               >
-                               {themeSettings.toggleOffColor.name === color.name && <CheckIcon className="h-6 w-6 text-white" />}
-                               </button>
-                           ))}
-                       </div>
-                   </div>
-                </SettingsSection>
+              <SettingsSection title="Chat Wallpaper">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
+                  {wallpapers.map(wp => (
+                    <button key={wp} onClick={() => handleSettingChange('chatBackground', wp)} className="w-full aspect-square rounded-lg overflow-hidden ring-2 ring-offset-2 ring-offset-[#111b21] focus:outline-none relative group transition-transform hover:scale-105">
+                      <div style={{ backgroundImage: `url(${wp})`, backgroundColor: wp.startsWith('#') ? wp : 'transparent' }} className="w-full h-full bg-cover bg-center"></div>
+                      <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${themeSettings.chatBackground === wp ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                        <CheckIcon className="h-8 w-8 text-white" />
+                      </div>
+                    </button>
+                  ))}
+                  <button onClick={() => fileInputRef.current?.click()} className="w-full aspect-square rounded-lg bg-[#2a3942] flex flex-col items-center justify-center text-gray-300 transition-transform hover:scale-105">
+                    <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>
+                    <span className="text-xs mt-1">Custom</span>
+                  </button>
+                </div>
+              </SettingsSection>
 
-                <SettingsSection title="Header Animation">
-                    {renderSegmentedButton(
-                        [{ label: 'None', value: 'none' }, { label: 'Shine', value: 'shine' }, { label: 'Wave', value: 'wave' }],
-                        themeSettings.headerAnimation,
-                        (value) => handleSettingChange('headerAnimation', value)
-                    )}
-                </SettingsSection>
+              <SettingsSection title="Toggle Button Colors">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-[#2a3942]">
+                  <span className="text-white font-semibold">Preview</span>
+                  <ThemeToggle checked={previewToggle} onChange={setPreviewToggle} />
+                </div>
+                <div className="mt-4">
+                  <p className="text-sm text-gray-400 mb-2">On State</p>
+                  <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 gap-3">
+                    {TOGGLE_ON_COLORS.map(color => (
+                      // FIX: TOGGLE_ON_COLORS items do not have a nested 'gradient' property. Access 'from' and 'to' directly.
+                      <button key={color.name} onClick={() => handleSettingChange('toggleOnColor', { name: color.name, from: color.from, to: color.to })}
+                        className={`w-full aspect-square rounded-full focus:outline-none flex items-center justify-center ring-2 ring-offset-2 ring-offset-[#111b21] ${themeSettings.toggleOnColor.name === color.name ? 'ring-white' : 'ring-transparent'}`}
+                        style={{ backgroundImage: `linear-gradient(to right, ${color.from}, ${color.to})` }}
+                      >
+                        {themeSettings.toggleOnColor.name === color.name && <CheckIcon className="h-6 w-6 text-white" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <p className="text-sm text-gray-400 mb-2">Off State</p>
+                  <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 gap-3">
+                    {TOGGLE_OFF_COLORS.map(color => (
+                      <button key={color.name} onClick={() => handleSettingChange('toggleOffColor', color)}
+                        className={`w-full aspect-square rounded-full focus:outline-none flex items-center justify-center ring-2 ring-offset-2 ring-offset-[#111b21] ${themeSettings.toggleOffColor.name === color.name ? 'ring-white' : 'ring-transparent'}`}
+                        style={{ backgroundColor: color.color }}
+                      >
+                        {themeSettings.toggleOffColor.name === color.name && <CheckIcon className="h-6 w-6 text-white" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </SettingsSection>
+
+              <SettingsSection title="Header Animation">
+                <SegmentedButton
+                  options={[
+                    { label: 'None', value: 'none' },
+                    { label: 'Shine', value: 'shine' },
+                    { label: 'Wave', value: 'wave' }
+                  ]}
+                  value={themeSettings.headerAnimation}
+                  onChange={(value) => handleSettingChange('headerAnimation', value)}
+                />
+              </SettingsSection>
             </div>
           </div>
         )}
@@ -206,30 +179,37 @@ const ChatsSettingsScreen = () => {
         {activeTab === 'chat_settings' && (
           <div className="divide-y divide-gray-800">
             <SettingsSection title="UI Style">
-                {renderSegmentedButton(
-                    [{ label: 'Normal', value: 'normal' }, { label: 'Glossy', value: 'glossy' }],
-                    themeSettings.uiStyle,
-                    (value) => handleSettingChange('uiStyle', value)
-                )}
+              <SegmentedButton
+                options={[
+                  { label: 'Normal', value: 'normal' },
+                  { label: 'Glossy', value: 'glossy' }
+                ]}
+                value={themeSettings.uiStyle}
+                onChange={(value) => handleSettingChange('uiStyle', value)}
+              />
             </SettingsSection>
 
             <SettingsSection title="Font Size">
-                {renderSegmentedButton(
-                    [{ label: 'Small', value: 'small' }, { label: 'Medium', value: 'medium' }, { label: 'Large', value: 'large' }],
-                    themeSettings.fontSize,
-                    (value) => handleSettingChange('fontSize', value)
-                )}
+              <SegmentedButton
+                options={[
+                  { label: 'Small', value: 'small' },
+                  { label: 'Medium', value: 'medium' },
+                  { label: 'Large', value: 'large' }
+                ]}
+                value={themeSettings.fontSize}
+                onChange={(value) => handleSettingChange('fontSize', value)}
+              />
             </SettingsSection>
-            
-             <div className="px-6 py-4 flex justify-between items-center">
-                <div>
-                    <h2 className="text-white">Enable Animations</h2>
-                    <p className="text-xs text-gray-500">Enable/disable all UI animations.</p>
-                </div>
-                <ThemeToggle
-                    checked={themeSettings.animationsEnabled}
-                    onChange={(checked) => handleSettingChange('animationsEnabled', checked)}
-                />
+
+            <div className="px-6 py-4 flex justify-between items-center">
+              <div>
+                <h2 className="text-white">Enable Animations</h2>
+                <p className="text-xs text-gray-500">Enable/disable all UI animations.</p>
+              </div>
+              <ThemeToggle
+                checked={themeSettings.animationsEnabled}
+                onChange={(checked) => handleSettingChange('animationsEnabled', checked)}
+              />
             </div>
           </div>
         )}

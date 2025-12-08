@@ -115,5 +115,41 @@ service cloud.firestore {
       // Can only delete your own following relationships
       allow delete: if isOwner(userId);
     }
+    
+    // Workflows collection
+    match /workflows/{workflowId} {
+      // Users can read their own workflows
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can create their own workflows
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Users can update their own workflows
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can delete their own workflows
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Scheduled Messages collection
+    match /scheduledMessages/{messageId} {
+      // Users can read their own scheduled messages
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can create their own scheduled messages
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Users can update their own scheduled messages
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can delete their own scheduled messages
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Workflow Executions collection
+    match /workflowExecutions/{executionId} {
+      // Users can read their own workflow executions
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // System can create workflow executions (workflow engine)
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // System can update workflow executions (workflow engine)
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can delete their own workflow executions
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
   }
 }

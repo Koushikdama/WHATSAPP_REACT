@@ -5,6 +5,8 @@ import { editMessage } from '../../api'; // Keep editMessage from api for now
 import { Message, PollInfo } from '../../types';
 import GifPicker from '../chat/GifPicker';
 import CreatePoll from '../chat/CreatePoll';
+import ScheduleMessageModal from '../workflows/ScheduleMessageModal';
+import { Clock, Bell, BellOff } from 'lucide-react';
 
 interface MessageComposerProps {
   onMessageSent: (newMessage: Message) => void;
@@ -24,6 +26,8 @@ const MessageComposer = ({ onMessageSent, replyingTo, onClearReply, editingMessa
   const [isAttachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [isGifPickerOpen, setGifPickerOpen] = useState(false);
   const [isCreatePollOpen, setCreatePollOpen] = useState(false);
+  const [isScheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [isSilentMessage, setSilentMessage] = useState(false); // Silent message toggle
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -121,10 +125,8 @@ const MessageComposer = ({ onMessageSent, replyingTo, onClearReply, editingMessa
               url: attachmentPreview.url, // Using attachmentPreview.url as a mock for uploadedUrl
               name: file.name,
               size: `${(file.size / 1024).toFixed(1)} KB`,
-              type: file.type,
             },
             reactions: {},
-            deleteFor: [],
             deleteForEveryone: false, // Track if deleted for everyone
             isEdited: false, // Track if message was edited
             isSeen: false, // Track if message is seen
@@ -139,7 +141,6 @@ const MessageComposer = ({ onMessageSent, replyingTo, onClearReply, editingMessa
             messageType: 'text',
             fileInfo: undefined,
             reactions: {},
-            deleteFor: [],
             deleteForEveryone: false,
             isEdited: false,
             isSeen: false,
@@ -151,6 +152,11 @@ const MessageComposer = ({ onMessageSent, replyingTo, onClearReply, editingMessa
           messageData.replyMessageId = replyingTo.id;
           messageData.replyMessageSender = replyingTo.senderId === currentUser.id ? 'You' : (users.find(u => u.id === replyingTo.senderId)?.name || 'Unknown');
           messageData.replyMessageContent = replyingTo.content;
+        }
+
+        // Add silent flag if enabled
+        if (isSilentMessage) {
+          messageData.isSilent = true;
         }
 
         // Add file info if attachment exists
@@ -180,6 +186,7 @@ const MessageComposer = ({ onMessageSent, replyingTo, onClearReply, editingMessa
       setText('');
       setAttachmentPreview(null);
       onClearReply();
+      setSilentMessage(false); // Reset silent mode after sending
 
     } catch (error) {
       console.error("Failed to send/edit message:", error);
@@ -283,6 +290,12 @@ const MessageComposer = ({ onMessageSent, replyingTo, onClearReply, editingMessa
       {/* Modals */}
       <GifPicker isOpen={isGifPickerOpen} onClose={() => setGifPickerOpen(false)} onSelect={handleGifSend} />
       <CreatePoll isOpen={isCreatePollOpen} onClose={() => setCreatePollOpen(false)} onCreate={handleCreatePoll} />
+      <ScheduleMessageModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setScheduleModalOpen(false)}
+        chatId={selectedChat?.id || ''}
+        onScheduled={() => setScheduleModalOpen(false)}
+      />
 
       {/* Attachment Preview */}
       {attachmentPreview && (
@@ -339,6 +352,24 @@ const MessageComposer = ({ onMessageSent, replyingTo, onClearReply, editingMessa
       <div className="px-4 py-3 flex items-center space-x-3">
         <button className="text-gray-400 hover:text-gray-200">
           <EmojiIcon className="h-6 w-6" />
+        </button>
+
+        {/* Schedule Message Button */}
+        <button
+          className="text-gray-400 hover:text-primary transition-colors"
+          onClick={() => setScheduleModalOpen(true)}
+          title="Schedule Message"
+        >
+          <Clock className="h-6 w-6" />
+        </button>
+
+        {/* Silent Message Toggle */}
+        <button
+          className={`transition-colors ${isSilentMessage ? 'text-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
+          onClick={() => setSilentMessage(!isSilentMessage)}
+          title={isSilentMessage ? 'Silent mode ON - message will be sent without notification' : 'Send silently (no notification)'}
+        >
+          {isSilentMessage ? <BellOff className="h-6 w-6" /> : <Bell className="h-6 w-6" />}
         </button>
 
         {/* Attachment Menu */}
